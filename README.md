@@ -64,6 +64,12 @@ for {_app, {file, content, opts}} <- runtime_configs,
 []
 ```
 
+### Starting the VM
+
+```bash
+elixir --no-halt -S mix kapten.start
+```
+
 ## Dependency Requirements
 
 ### A dependency must not refer to the `deps` directory with a relative path.
