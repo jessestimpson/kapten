@@ -1,6 +1,68 @@
 # Kapten
 
-**TODO: Add description**
+WIP. Goal is to configure several disparate Elixir apps in one BEAM.
+
+## Usage
+
+Create a new mix project. In this example, we'll call it `:my_ship`.
+
+### Get your deps
+
+Add kapten and the apps you wish to run to your deps.
+
+```elixir
+defp kapten_dep(dep \\ []) do
+  env = if Mix.env() == :dev, do: :dev, else: :prod
+
+  [ env: env, only: [:dev, :prod] ]
+  |> Keyword.merge(dep)
+end
+
+def deps do
+  [
+    {:kapten, "~> 0.1.0"},
+    {:my_app, "~> 0.1.0", kapten_dep()},
+    {:other_app, "~> 0.1.0", kapten_dep()}
+  ]
+end
+```
+
+### Create config.exs
+
+```elixir
+import Config
+
+Mix.Project.deps_paths()
+|> Map.get(:kapten)
+|> Path.join("config/config.exs")
+|> Code.require_file()
+
+defmodule MyShip.Config do
+  use Kapten.Config,
+    apps: [
+      my_app: [env: [dev: [port: 4000]]],
+      other_app: [env: [dev: [port: 4001]]]
+    ]
+end
+
+MyShip.Config.configure_compiletime()
+
+config :kapten, :runtime, MyShip.Config.runtime_configs()
+```
+
+### Create runtime.exs
+
+```elixir
+import Config
+
+runtime_configs = Application.compile_env!(:kapten, :runtime)
+
+# Warning: we're using an undocumented API here
+for {_app, {file, content, opts}} <- runtime_configs,
+    do: Config.__eval__!(file, content, opts)
+
+[]
+```
 
 ## Dependency Requirements
 
@@ -40,19 +102,10 @@ config :my_app, MyAppWeb.Endpoint,
 
 Your endpoint may not be the only config to consider: any system resource could be a conflict.
 
-## Installation
+## Known Issues
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `kapten` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:kapten, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/kapten>.
+0. Shared dependencies will be challenging to manage. The apps must agree on a common set of deps.
+1. The API is awkward. It's challenging to get custom modules loaded into the elixir config files.
+2. Upon generating a release, a warning is emitted that `MyShip.Config` is being redefined.
+3. Each dep must be sufficiently configurable to avoid conflicts, and the conventional approach to managing dev.exs is incompatible.
+4. The rutnime.exs must use an undocumented public API from Config
