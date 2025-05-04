@@ -79,7 +79,7 @@ config :esbuild,
       ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
     cd: Path.expand("../assets", __DIR__),
 -    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
--    env: %{"NODE_PATH" => Mix.Project.deps_path()}
++    env: %{"NODE_PATH" => Mix.Project.deps_path()}
   ]
 ```
 
@@ -88,7 +88,7 @@ deps created and managed by `mix` at the top-level only.
 
 ### A dependency must allow full configurability of shared system resources
 
-For example, it's common for a dev.config to hard-code a listening port. Since we're starting
+For example, it's common for a config/dev.exs to hard-code a listening port. Since we're starting
 several, these can conflict with each other. Our recommended approach is for the dep to optionally
 read from the `Mix.Project.config()`. Kapten provides a way to influence this config when it is
 compiling its own config.exs.
