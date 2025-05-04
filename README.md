@@ -109,3 +109,4 @@ Your endpoint may not be the only config to consider: any system resource could 
 2. Upon generating a release, a warning is emitted that `MyShip.Config` is being redefined.
 3. Each dep must be sufficiently configurable to avoid conflicts, and the conventional approach to managing dev.exs is incompatible.
 4. The rutnime.exs must use an undocumented public API from Config
+5. Elixir LSP will complain about using Kapten.Config in the confix.exs because it doesn't know it's being required from the Kapten config.exs.
