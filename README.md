@@ -32,22 +32,26 @@ end
 ```elixir
 import Config
 
-Mix.Project.deps_paths()
-|> Map.get(:kapten)
-|> Path.join("config/config.exs")
-|> Code.require_file()
+kapten_config =
+  Mix.Project.deps_paths()
+  |> Map.get(:kapten)
+  |> Path.join("config/config.exs")
 
-defmodule MyShip.Config do
-  use Kapten.Config,
-    apps: [
-      my_app: [env: [dev: [port: 4000]]],
-      other_app: [env: [dev: [port: 4001]]]
-    ]
+if File.exists?(kapten_config) do
+  Code.require_file(kapten_config)
+
+  defmodule MyShip.Config do
+    use Kapten.Config,
+      apps: [
+        my_app: [env: [dev: [port: 4000]]],
+        other_app: [env: [dev: [port: 4001]]]
+      ]
+  end
+
+  MyShip.Config.configure_compiletime()
+
+  config :kapten, :runtime, MyShip.Config.runtime_configs()
 end
-
-MyShip.Config.configure_compiletime()
-
-config :kapten, :runtime, MyShip.Config.runtime_configs()
 ```
 
 ### Create runtime.exs
@@ -91,6 +95,8 @@ config :esbuild,
 
 Notice that the `"../assets"` path is ok because that directory is part of the dep project itself, whereas
 deps created and managed by `mix` at the top-level only.
+
+@todo: newish geneator adds a reference to deps dir in tailwind.config.js, which is a problem
 
 ### A dependency must allow full configurability of shared system resources
 
