@@ -49,9 +49,9 @@ if File.exists?(kapten_config) do
   end
 
   MyShip.Config.configure_compiletime()
-
-  config :kapten, :runtime, MyShip.Config.runtime_configs()
 end
+
+[]
 ```
 
 ### Create runtime.exs
@@ -59,19 +59,23 @@ end
 ```elixir
 import Config
 
-runtime_configs = Application.compile_env!(:kapten, :runtime)
+if config_env() == :prod do
+  System.put_env("PHX_HOST", "example.com")
+end
 
-# Warning: we're using an undocumented API here
-for {_app, {file, content, opts}} <- runtime_configs,
-    do: Config.__eval__!(file, content, opts)
+MyShip.Config.configure_runtime([:my_app])
 
-[]
+if config_env() == :prod do
+  System.put_env("PHX_HOST", "other.com")
+end
+
+MyShip.Config.configure_runtime([:other_app])
 ```
 
 ### Starting the VM
 
 ```bash
-elixir --no-halt -S mix kapten.start
+MIX_ENV=prod elixir --no-halt -S mix kapten.start
 ```
 
 ## Dependency Requirements
@@ -118,7 +122,7 @@ Your endpoint may not be the only config to consider: any system resource could 
 
 0. Shared dependencies will be challenging to manage. The apps must agree on a common set of deps.
 1. The API is awkward. It's challenging to get custom modules loaded into the elixir config files.
-2. Upon generating a release, a warning is emitted that `MyShip.Config` is being redefined.
+2. Releases are not supported
 3. Each dep must be sufficiently configurable to avoid conflicts, and the conventional approach to managing dev.exs is incompatible.
-4. The rutnime.exs must use an undocumented public API from Config
+4. Kapten uses undocumented public API from Elixir Config
 5. Elixir LSP will complain about using Kapten.Config in the confix.exs because it doesn't know it's being required from the Kapten config.exs.

@@ -8,6 +8,7 @@ defmodule Kapten.Config do
     quote do
       @apps unquote(opts[:apps])
       @runtime_configs Kapten.Config.__build_runtime_configs__(unquote(Keyword.keys(opts[:apps])))
+      @runtime_config_process_key :kapten_runtime_config
 
       def configure_compiletime(app_names \\ unquote(opts[:apps] |> Keyword.keys())) do
         apps = Keyword.take(@apps, app_names)
@@ -18,10 +19,17 @@ defmodule Kapten.Config do
         runtime_configs = Keyword.take(@runtime_configs, app_names)
 
         # Warning: we're using an undocumented API here
-        for {_app, {file, content, opts}} <- runtime_configs,
-            do: Config.__eval__!(file, content, opts)
+        new_config =
+          Enum.reduce(runtime_configs, [], fn {app, {file, content, opts}}, acc ->
+            {app_config, _} = Config.__eval__!(file, content, opts)
+            Config.__merge__(acc, app_config)
+          end)
 
-        []
+        # Merging with config from process dictionary ensures final call in runtime.exs returns all configs
+        proc_config = Process.get(@runtime_config_process_key, [])
+        proc_config = Config.__merge__(proc_config, new_config)
+        Process.put(@runtime_config_process_key, proc_config)
+        proc_config
       end
 
       def runtime_configs(), do: @runtime_configs
