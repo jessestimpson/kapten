@@ -72,6 +72,27 @@ end
 MyShip.Config.configure_runtime([:other_app])
 ```
 
+### Running mix tasks for deploy preparation
+
+In your Mix Project's deps, add a `:"kapten.deploy"` key that specifies any mix tasks to run before deployment.
+
+```elixir
+# mix.exs
+# ...
+  defp deps do
+    [
+      {:kapten, github: "jessestimpson/kapten"},
+      {:my_app, kapten_dep(github: "jessestimpson/my_app", "kapten.deploy": ["phx.digest --no-compile"])},
+      {:stimpson, kapten_dep(github: "jessestimpson/other_app", "kapten.deploy": ["phx.digest --no-compile"])}
+    ]
+  end
+# ...
+```
+
+```bash
+MIX_ENV=prod mix kapten.deploy
+```
+
 ### Starting the VM
 
 ```bash
