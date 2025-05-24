@@ -75,7 +75,7 @@ MyShip.Config.configure_runtime([:other_app])
 ### Starting the VM
 
 ```bash
-MIX_ENV=prod elixir --no-halt -S mix kapten.start
+MIX_ENV=prod elixir -S mix kapten.start
 ```
 
 ## Dependency Requirements
