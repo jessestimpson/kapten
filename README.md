@@ -4,6 +4,7 @@ WIP. Goal is to configure several disparate Elixir apps in one BEAM.
 
 ## Dependencies
 
+* openssl
 * nginx
 * certbot
 
@@ -37,6 +38,17 @@ end
 ```elixir
 import Config
 
+config :kapten, Kapten.OpenSSL, openssl: "/usr/bin/openssl"
+
+config :kapten, Kapten.Certbot, certbot: "/opt/homebrew/bin/certbot"
+
+config :kapten, Kapten.Nginx, nginx: "/opt/homebrew/opt/nginx/bin/nginx"
+
+if config_env() == :prod do
+  config :kapten, Kapten.Nginx,
+    tls_servers: ["myapp.example.com": [http: 4000], "otherapp.example.com": [http: 4001]]
+end
+
 kapten_config =
   Mix.Project.deps_paths()
   |> Map.get(:kapten)
@@ -65,13 +77,13 @@ end
 import Config
 
 if config_env() == :prod do
-  System.put_env("PHX_HOST", "example.com")
+  System.put_env("PHX_HOST", "myapp.example.com")
 end
 
 MyShip.Config.configure_runtime([:my_app])
 
 if config_env() == :prod do
-  System.put_env("PHX_HOST", "other.com")
+  System.put_env("PHX_HOST", "otherapp.example.com")
 end
 
 MyShip.Config.configure_runtime([:other_app])

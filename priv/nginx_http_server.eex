@@ -5,12 +5,12 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
 
-    ssl_certificate <%= @certbot %>/self/<%= @domain %>/fullchain.pem;
-    ssl_certificate_key <%= @certbot %>/self/<%= @domain %>/privkey.pem;
+    ssl_certificate <%= @certbot %>/self/<%= @server_name %>/fullchain.pem;
+    ssl_certificate_key <%= @certbot %>/self/<%= @server_name %>/privkey.pem;
 
-    # root /var/www/<%= @domain %>/html;
+    # root /var/www/<%= @server_name %>/html;
 
-    server_name <%= @domain %>;
+    server_name <%= @server_name %>;
 
     location / {
         proxy_set_header X-Real-IP $remote_addr;

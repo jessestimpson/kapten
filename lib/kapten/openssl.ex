@@ -1,6 +1,6 @@
 defmodule Kapten.OpenSSL do
-  def ctl() do
-    config()[:ctl] || "/usr/bin/openssl"
+  def openssl() do
+    config()[:openssl] || "/usr/bin/openssl"
   end
 
   defp config() do
@@ -18,7 +18,7 @@ defmodule Kapten.OpenSSL do
       File.mkdir_p!(certbot_path)
 
       cmd = [
-        ctl(),
+        openssl(),
         "req",
         "-nodes",
         "-new",

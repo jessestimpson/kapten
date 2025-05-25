@@ -3,6 +3,10 @@ defmodule Kapten.Certbot do
     Application.get_env(:kapten, __MODULE__, [])
   end
 
+  def certbot() do
+    config()[:certbot]
+  end
+
   def work_dir() do
     (config()[:work_dir] || Path.join(:code.priv_dir(:kapten), "certbot/work"))
     |> Path.expand()
@@ -23,38 +27,33 @@ defmodule Kapten.Certbot do
       for(domain <- domains, do: ["--domain", "#{domain}"])
       |> List.flatten()
 
-    globals = %{
-      "cli_args" =>
-        cmd ++
-          [
-            "--cert-name",
-            "#{cert_name}"
-          ] ++
-          domain_args ++
-          [
-            "--nginx",
-            "--non-interactive",
-            "--work-dir",
-            work_dir(),
-            "--logs-dir",
-            logs_dir(),
-            "--config-dir",
-            config_dir(),
-            "--agree-tos",
-            "--nginx-ctl",
-            Kapten.Nginx.ctl(),
-            "--nginx-server-root",
-            Kapten.Nginx.root()
-          ]
-    }
+    cmd =
+      [certbot() | cmd] ++
+        [
+          "--cert-name",
+          "#{cert_name}"
+        ] ++
+        domain_args ++
+        [
+          "--nginx",
+          "--non-interactive",
+          "--work-dir",
+          work_dir(),
+          "--logs-dir",
+          logs_dir(),
+          "--config-dir",
+          config_dir(),
+          "--agree-tos",
+          "--nginx-ctl",
+          Kapten.Nginx.nginx(),
+          "--nginx-server-root",
+          Kapten.Nginx.root()
+        ]
 
-    python = """
-    from certbot import main
-    cli_args = [ x.decode(encoding="utf-8") for x in cli_args]
-    main.main(cli_args)
-    """
+    {stdout, _code} = System.cmd(hd(cmd), tl(cmd), [])
 
-    Pythonx.eval(python, globals)
+    IO.puts(stdout)
+
     :ok
   end
 end

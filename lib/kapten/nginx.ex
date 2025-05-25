@@ -13,12 +13,12 @@ defmodule Kapten.Nginx do
     config[:root] || default
   end
 
-  def ctl() do
-    config()[:ctl]
+  def nginx() do
+    config()[:nginx]
   end
 
-  def domains() do
-    config()[:domains]
+  def tls_servers() do
+    config()[:tls_servers] || []
   end
 
   def child_spec(init_arg) do
@@ -30,55 +30,55 @@ defmodule Kapten.Nginx do
     Supervisor.child_spec(default, [])
   end
 
-  defp config() do
-    Application.fetch_env!(:kapten, __MODULE__)
+  def config() do
+    Application.get_env(:kapten, __MODULE__)
   end
 
   def start_link(_arg) do
-    domains = domains()
+    tls_servers = tls_servers()
 
-    prepare_domains!(domains)
+    prepare_tls_servers!(tls_servers)
 
     config_file = Path.join([root(), "nginx.conf"])
-    cmd = [ctl(), "-g", "daemon off;", "-c", config_file]
+    cmd = [nginx(), "-g", "daemon off;", "-c", config_file]
     {:ok, pid, _os_pid} = :exec.run_link(cmd, [:stdout, :stderr])
 
-    for {domain, _domain_config} <- domains do
-      Kapten.Certbot.run!([], domain, [domain])
+    for {cert_name, _server_config} <- tls_servers do
+      Kapten.Certbot.run!([], cert_name, [cert_name])
       interval = :timer.seconds(20)
       # interval = :timer.hours(24)
-      :timer.apply_interval(interval, Kapten.Certbot, :run!, [[], domain, [domain]])
+      :timer.apply_interval(interval, Kapten.Certbot, :run!, [[], cert_name, [cert_name]])
     end
 
     {:ok, pid}
   end
 
-  defp prepare_domains!([]) do
+  defp prepare_tls_servers!([]) do
     :ok
   end
 
-  defp prepare_domains!([{domain, domain_config} | domains]) do
+  defp prepare_tls_servers!([{cert_name, server_config} | tls_servers]) do
     certbot_config_dir = Kapten.Certbot.config_dir()
-    Kapten.OpenSSL.create_self_signed_if_necessary(certbot_config_dir, domain)
+    Kapten.OpenSSL.create_self_signed_if_necessary(certbot_config_dir, cert_name)
 
-    port = domain_config[:http]
+    port = server_config[:http]
     nginx_root = root()
     servers_path = Path.join([nginx_root, "servers"])
     File.mkdir_p!(servers_path)
 
-    server_file = Path.join([servers_path, "#{domain}.conf"])
+    server_file = Path.join([servers_path, "#{cert_name}.conf"])
 
     if File.exists?(server_file) do
       :ok
     else
       server_conf =
         EEx.eval_file(@server_template,
-          assigns: [certbot: certbot_config_dir, domain: "#{domain}", port: port]
+          assigns: [certbot: certbot_config_dir, server_name: "#{cert_name}", port: port]
         )
 
       :ok = File.write!(server_file, server_conf)
     end
 
-    prepare_domains!(domains)
+    prepare_tls_servers!(tls_servers)
   end
 end
