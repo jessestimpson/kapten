@@ -45,8 +45,7 @@ defmodule Kapten.Nginx do
 
     for {cert_name, _server_config} <- tls_servers do
       Kapten.Certbot.run!([], cert_name, [cert_name])
-      interval = :timer.seconds(20)
-      # interval = :timer.hours(24)
+      interval = :timer.hours(24)
       :timer.apply_interval(interval, Kapten.Certbot, :run!, [[], cert_name, [cert_name]])
     end
 
