@@ -40,7 +40,9 @@ import Config
 
 config :kapten, Kapten.OpenSSL, openssl: "/usr/bin/openssl"
 
-config :kapten, Kapten.Certbot, certbot: "/opt/homebrew/bin/certbot"
+config :kapten, Kapten.Certbot,
+  certbot: "/opt/homebrew/bin/certbot",
+  email: "your-email@example.com"
 
 config :kapten, Kapten.Nginx, nginx: "/opt/homebrew/opt/nginx/bin/nginx"
 

@@ -7,11 +7,11 @@ defmodule Kapten.Application do
   def start(_type, _args) do
     nginx =
       case Kapten.Nginx.config() do
-        {:ok, _} ->
-          [Kapten.Nginx]
-
-        _ ->
+        nil ->
           []
+
+        _config ->
+          [Kapten.Nginx]
       end
 
     children = nginx

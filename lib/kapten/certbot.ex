@@ -22,6 +22,10 @@ defmodule Kapten.Certbot do
     |> Path.expand()
   end
 
+  def email() do
+    config()[:email] || raise "Email not configured"
+  end
+
   def run!(cmd, cert_name, domains) do
     domain_args =
       for(domain <- domains, do: ["--domain", "#{domain}"])
@@ -47,7 +51,9 @@ defmodule Kapten.Certbot do
           "--nginx-ctl",
           Kapten.Nginx.nginx(),
           "--nginx-server-root",
-          Kapten.Nginx.root()
+          Kapten.Nginx.root(),
+          "--email",
+          email()
         ]
 
     {stdout, _code} = System.cmd(hd(cmd), tl(cmd), [])
