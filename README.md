@@ -7,6 +7,7 @@ WIP. Goal is to configure several disparate Elixir apps in one BEAM.
 * openssl
 * nginx
 * certbot
+* certbot-nginx
 
 ## Usage
 
