@@ -2,6 +2,11 @@
 
 WIP. Goal is to configure several disparate Elixir apps in one BEAM.
 
+## Dependencies
+
+* nginx
+* certbot
+
 ## Usage
 
 Create a new mix project. In this example, we'll call it `:my_ship`.

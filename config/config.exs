@@ -1,5 +1,21 @@
-require Config
+import Config
 require Logger
+
+config :pythonx, :uv_init,
+  pyproject_toml: """
+  [project]
+  name = "project"
+  version = "0.0.0"
+  requires-python = "==3.13.*"
+  dependencies = [
+    "certbot==4.0.0",
+    "certbot-nginx==4.0.0"
+  ]
+  """
+
+config :kapten, Kapten.Nginx,
+  domains: ["33ff71a8f4055c.lhr.life": [http: 4000]],
+  ctl: "/opt/homebrew/opt/nginx/bin/nginx"
 
 defmodule Kapten.Config do
   require Logger

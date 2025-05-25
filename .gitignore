@@ -21,3 +21,8 @@ kapten-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+priv/nginx/servers/*
+priv/nginx/.certbot.lock
+
+priv/certbot
