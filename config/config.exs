@@ -1,4 +1,5 @@
 require Logger
+require Config
 
 defmodule Kapten.Config do
   require Logger
