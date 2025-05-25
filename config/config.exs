@@ -1,4 +1,3 @@
-import Config
 require Logger
 
 defmodule Kapten.Config do
