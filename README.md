@@ -9,6 +9,16 @@ WIP. Goal is to configure several disparate Elixir apps in one BEAM.
 * certbot
 * certbot-nginx
 
+### Disable services
+
+Kapten manages services using a supervisor. We do not want systemd to interfere.
+
+```
+systemctl stop nginx && systemctl mask nginx
+systemctl stop certbot.timer && systemctl mask certbot.timer
+systemctl stop certbot && systemctl mask certbot
+```
+
 ## Usage
 
 Create a new mix project. In this example, we'll call it `:my_ship`.
@@ -203,6 +213,34 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target
+```
+
+Disable services from the dependencies shown above and any other services that you may have under kapten's management:
+
+```
+# Required
+systemctl stop nginx && systemctl mask nginx
+systemctl stop certbot.timer && systemctl mask certbot.timer
+systemctl stop certbot && systemctl mask certbot
+
+# App-specific example
+systemctl stop foundationdb && systemctl mask foundationdb
+```
+
+### apt unattended-upgrades
+
+If you're using unattended-upgrades, you may want to add your service to the Blacklist. Here's how to do it:
+
+```
+vim /etc/apt/apt.conf.d/50unattended-upgrades
+```
+
+```
+// List of services to not restart automatically
+Unattended-Upgrade::Services-Blacklist {
+    // "ssh";
+    "my_ship.service";
+};
 ```
 
 ## Known Issues
