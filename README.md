@@ -103,7 +103,7 @@ In your Mix Project's deps, add a `:"kapten.deploy"` key that specifies any mix 
     [
       {:kapten, github: "jessestimpson/kapten"},
       {:my_app, kapten_dep(github: "jessestimpson/my_app", "kapten.deploy": ["phx.digest --no-compile"])},
-      {:stimpson, kapten_dep(github: "jessestimpson/other_app", "kapten.deploy": ["phx.digest --no-compile"])}
+      {:other_app, kapten_dep(github: "jessestimpson/other_app", "kapten.deploy": ["phx.digest --no-compile"])}
     ]
   end
 # ...
@@ -158,6 +158,52 @@ config :my_app, MyAppWeb.Endpoint,
 ```
 
 Your endpoint may not be the only config to consider: any system resource could be a conflict.
+
+## System setup
+
+### start script
+
+The `.env` file sets up all the env vars required by your config. These can be secrets. Don't check them in.
+
+```
+# .env
+export MIX_ENV=prod
+export MYAPP_SECRET_KEY_BASE="foobar"
+export OTHERAPP_SECRET_KEY_BASE="bazbuz"
+```
+
+The `start.sh` script starts the app. It's helpful if you're using asdf.
+
+```
+# start.sh
+#!/bin/bash
+export ASDF_DATA_DIR=/home/kapten/.asdf
+export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
+source .env
+mix kapten.start
+```
+
+### systemd
+
+The `my_ship.service` file tells systemd how to start the app. The `CAP_NET_BIND_SERVICE` capability is required to bind to ports below 1024.
+
+```
+# my_ship.service
+[Unit]
+Description=My Ship Service
+After=network.target
+
+[Service]
+User=kapten
+Group=kapten
+WorkingDirectory=/home/kapten/my_ship
+ExecStart=/home/kapten/my_ship/start.sh
+Restart=on-failure
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
+```
 
 ## Known Issues
 
