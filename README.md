@@ -14,6 +14,10 @@ You're not going to want to host your SaaS startup with it, but your blog would 
 
 I was tired of managing containers.
 
+## Security? Nope.
+
+There is no sandboxing for each app, so they can easily interact (e.g. read public ets table, call any exported function). **You probably shouldn't use Kapten.**
+
 ## System Dependencies
 
 You must install these to use Kapten.
