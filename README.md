@@ -3,25 +3,29 @@
 Kapten is a tool for hosting multiple disparate Elixir apps in one BEAM.
 
 * Supports any Elixir app
-* TLS connections
-* Static apps
+* Automatic TLS management
+* Static apps also supported
 
 Kapten is highly opinionated, and was built for my own personal use.
 
+You're not going to want to host your SaaS startup with it, but your blog would do just fine.
+
 ## Motivation
 
-I was tired of running containers.
+I was tired of managing containers.
 
-## Dependencies
+## System Dependencies
 
-* openssl
-* nginx
-* certbot
-* certbot-nginx
+You must install these to use Kapten.
+
+* [openssl](https://openssl-library.org/) (You probably already have this on your system)
+* [nginx](https://nginx.org/en/docs/install.html)
+* [certbot](https://certbot.eff.org/)
+* [certbot-nginx](https://certbot.eff.org/instructions?ws=nginx&os=pip)
 
 ### Disable services
 
-Kapten manages services using a supervisor. We do not want systemd to interfere,
+Kapten manages services internally using an Elixir supervisor. We do not want systemd to interfere,
 so after you install the dependencies, make sure they're all stopped and disabled.
 
 ```
@@ -30,11 +34,22 @@ systemctl stop certbot.timer && systemctl mask certbot.timer
 systemctl stop certbot && systemctl mask certbot
 ```
 
+## TLS
+
+Setting up TLS automatically is usually a challenge. Kapten tries to make it easier, but also you have to know how it works.
+
+* Kapten uses certbot to interface with Let's Encrypt.
+* We use the certbot-nginx plugin to configure and reload nginx automatically
+* The certbot refresh is managed by Kapten, with an Elixir timer
+* We support HTTP challenges only. Your host must be reachable by Let's Encrypt servers on port 80 and 443
+* nginx starts before certbot can issue certificates. But nginx can't start unless it has a certificate. To solve the chicken-egg problem, we use a self-signed certificate until certbot is ready. This is the only reason we need openssl -- for first-time bootstrapping
+* Kapten does not manage DNS for you. You must configure DNS appropriately for the Let's Encrypt challenge, and for your apps to be reachable on the internet. Since you're using Kapten, you probably only have 1 server, so you can just create separate A records all pointing to the same public IP address. If you have more than 1 host, don't use Kapten.
+
 ## Usage
 
 Create a new mix project. In this example, we'll call it `:my_ship`. This project will
 contain all the set-up configuration for the apps you want to host. Think of it as the
-replacement for compose.yaml. Instead of configuring a compose file, the entire Elixir
+replacement for compose.yaml. Instead of configuring a yaml file, the entire Elixir
 `:my_ship` project holds our configuration.
 
 ### Mix envs
@@ -82,13 +97,16 @@ config :kapten, Kapten.Certbot,
 # System configuration for the nginx binary path
 config :kapten, Kapten.Nginx, nginx: "/opt/homebrew/opt/nginx/bin/nginx"
 
+myapp_http_port = 4000
+otherapp_http_port = 4001
+
 # Defines the TLS servers for your Ship. `http` will be a reverse proxy, `static` will simply be an
 # nginx `root` directory. You can't mix them.
 if config_env() == :prod do
   config :kapten, Kapten.Nginx,
     tls_servers: [
-      "myapp.example.com": [http: 4000],
-      "otherapp.example.com": [http: 4001],
+      "myapp.example.com": [http: myapp_http_port],
+      "otherapp.example.com": [http: otherapp_http_port],
       "docs.example.com": [static: "path/to/static/relative/to/my_ship/priv"]
     ]
 end
@@ -110,12 +128,12 @@ defmodule MyShip.Config do
   use Kapten.Config,
     otp_app: :my_ship,
     apps: [
-      my_app: [env: [dev: [port: 4000]]],
-      other_app: [env: [dev: [port: 4001]]]
+      my_app: [env: [dev: [port: myapp_http_port]]],
+      other_app: [env: [dev: [port: otherapp_http_port]]]
     ]
 end
 
-# Now we import each app's config.exs
+# This imports each app's config.exs
 MyShip.Config.configure_compiletime()
 
 []
@@ -144,7 +162,8 @@ MyShip.Config.configure_runtime([:other_app])
 
 ### Running mix tasks for deploy preparation
 
-In your Mix Project's deps, add a `:"kapten.deploy"` key that specifies any mix tasks to run before deployment.
+In your Mix Project's deps, add a `:"kapten.deploy"` key that specifies any mix tasks to run before deployment,
+such as generating a Phoenix asset digest.
 
 ```elixir
 # mix.exs
@@ -159,17 +178,23 @@ In your Mix Project's deps, add a `:"kapten.deploy"` key that specifies any mix 
 # ...
 ```
 
+Kapten will run each of these when you call the `kapten.deploy` mix task from the `:my_ship` root:
+
 ```bash
 MIX_ENV=prod mix kapten.deploy
 ```
 
 ### Starting the VM
 
+Kapaten doesn't use releases. You'll always start with mix.
+
 ```bash
 MIX_ENV=prod elixir -S mix kapten.start
 ```
 
 ## Dependency Requirements
+
+The unique nature of Kapten imposes some requirements on the Elixir apps that you want to run.
 
 ### A dependency must not refer to the `deps` directory with a relative path.
 
@@ -237,6 +262,8 @@ mix kapten.start
 
 The `my_ship.service` file tells systemd how to start the app. The `CAP_NET_BIND_SERVICE` capability is required to bind to ports below 1024.
 
+This file should be placed in `/etc/systemd/system/my_ship.service`. Once it's there, you can reload systemd with `systemctl daemon-reload`.
+
 ```
 # my_ship.service
 [Unit]
@@ -291,4 +318,4 @@ Unattended-Upgrade::Services-Blacklist {
 2. Releases are not supported
 3. Each dep must be sufficiently configurable to avoid conflicts, and the conventional approach to managing dev.exs is incompatible.
 4. Kapten uses undocumented public API from Elixir Config
-5. Elixir LSP will complain about using Kapten.Config in the confix.exs because it doesn't know it's being required from the Kapten config.exs.
+5. Elixir LSP will complain about calls to Kapten.Config in the confix.exs. It doesn't appear to follow `required` files.
