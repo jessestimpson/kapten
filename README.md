@@ -181,7 +181,7 @@ such as generating a Phoenix asset digest.
 Kapten will run each of these when you call the `kapten.deploy` mix task from the `:my_ship` root:
 
 ```bash
-MIX_ENV=prod mix kapten.deploy
+mix kapten.deploy
 ```
 
 ### Starting the VM
@@ -189,7 +189,7 @@ MIX_ENV=prod mix kapten.deploy
 Kapaten doesn't use releases. You'll always start with mix.
 
 ```bash
-MIX_ENV=prod elixir -S mix kapten.start
+elixir -S mix kapten.start
 ```
 
 ## Dependency Requirements
@@ -235,6 +235,19 @@ config :my_app, MyAppWeb.Endpoint,
 Your endpoint may not be the only config to consider: any system resource could be a conflict.
 
 ## System setup
+
+### First deploy procedure
+
+1. Clone or rsync your `:my_ship` repo to your host. It must be accessible by the user that will run the app.
+2. Create and source your .env file (remember: MIX_ENV=prod)
+3. mix deps.get && mix compile && mix kapten.deploy
+4. Create start.sh and my_ship.service (see below)
+5. `systemctl start my_ship.service`
+
+### App upgrade procedure
+1. `git pull` or `rsync` the latest.
+2. source .env && mix deps.get && mix compile && mix kapten.deploy
+3. `systemctl restart my_ship.service`
 
 ### start script
 
@@ -293,6 +306,11 @@ systemctl stop certbot && systemctl mask certbot
 # App-specific example
 systemctl stop foundationdb && systemctl mask foundationdb
 ```
+
+### Logs
+
+* MyShip: `journalctl -u my_ship.service -f`
+* nginx: `tail -f /usr/share/nginx/logs/*.log`
 
 ### apt unattended-upgrades
 
