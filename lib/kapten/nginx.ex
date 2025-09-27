@@ -1,7 +1,8 @@
 defmodule Kapten.Nginx do
   @moduledoc false
 
-  @server_template Path.join([:code.priv_dir(:kapten), "nginx_http_server.eex"])
+  @proxy_template Path.join([:code.priv_dir(:kapten), "nginx_http_proxy.eex"])
+  @static_template Path.join([:code.priv_dir(:kapten), "nginx_http_static.eex"])
 
   def root() do
     config = config()
@@ -60,7 +61,8 @@ defmodule Kapten.Nginx do
     certbot_config_dir = Kapten.Certbot.config_dir()
     Kapten.OpenSSL.create_self_signed_if_necessary(certbot_config_dir, cert_name)
 
-    port = server_config[:http]
+    otp_app_priv = :code.priv_dir(Application.fetch_env!(:kapten, :otp_app))
+
     nginx_root = root()
     servers_path = Path.join([nginx_root, "servers"])
     File.mkdir_p!(servers_path)
@@ -70,14 +72,44 @@ defmodule Kapten.Nginx do
     if File.exists?(server_file) do
       :ok
     else
-      server_conf =
-        EEx.eval_file(@server_template,
-          assigns: [certbot: certbot_config_dir, server_name: "#{cert_name}", port: port]
+      server_n_conf =
+        create_nginx_conf(server_config,
+          otp_app_priv: otp_app_priv,
+          certbot: certbot_config_dir,
+          server_name: "#{cert_name}"
         )
 
-      :ok = File.write!(server_file, server_conf)
+      :ok = File.write!(server_file, server_n_conf)
     end
 
     prepare_tls_servers!(tls_servers)
+  end
+
+  defp create_nginx_conf(server_config, assigns) do
+    case server_config[:http] do
+      nil ->
+        case server_config[:static] do
+          nil ->
+            raise "Server must either have :http or :static config var"
+
+          static_root ->
+            create_nginx_conf_static(static_root, assigns)
+        end
+
+      port ->
+        create_http_conf_proxy(port, assigns)
+    end
+  end
+
+  defp create_nginx_conf_static(static_root, assigns) do
+    EEx.eval_file(@static_template,
+      assigns: assigns ++ [static_root: static_root]
+    )
+  end
+
+  defp create_http_conf_proxy(port, assigns) do
+    EEx.eval_file(@proxy_template,
+      assigns: assigns ++ [port: port]
+    )
   end
 end

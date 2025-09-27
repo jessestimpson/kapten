@@ -1,0 +1,14 @@
+server {
+    listen 80;
+    listen [::]:80;
+
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    ssl_certificate <%= @certbot %>/self/<%= @server_name %>/fullchain.pem;
+    ssl_certificate_key <%= @certbot %>/self/<%= @server_name %>/privkey.pem;
+
+    root <%= @otp_app_priv %>/<%= @static_root %>;
+
+    server_name <%= @server_name %>;
+}

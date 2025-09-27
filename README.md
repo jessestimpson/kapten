@@ -1,6 +1,16 @@
 # Kapten
 
-WIP. Goal is to configure several disparate Elixir apps in one BEAM.
+Kapten is a tool for hosting multiple disparate Elixir apps in one BEAM.
+
+* Supports any Elixir app
+* TLS connections
+* Static apps
+
+Kapten is highly opinionated, and was built for my own personal use.
+
+## Motivation
+
+I was tired of running containers.
 
 ## Dependencies
 
@@ -11,7 +21,8 @@ WIP. Goal is to configure several disparate Elixir apps in one BEAM.
 
 ### Disable services
 
-Kapten manages services using a supervisor. We do not want systemd to interfere.
+Kapten manages services using a supervisor. We do not want systemd to interfere,
+so after you install the dependencies, make sure they're all stopped and disabled.
 
 ```
 systemctl stop nginx && systemctl mask nginx
@@ -21,25 +32,36 @@ systemctl stop certbot && systemctl mask certbot
 
 ## Usage
 
-Create a new mix project. In this example, we'll call it `:my_ship`.
+Create a new mix project. In this example, we'll call it `:my_ship`. This project will
+contain all the set-up configuration for the apps you want to host. Think of it as the
+replacement for compose.yaml. Instead of configuring a compose file, the entire Elixir
+`:my_ship` project holds our configuration.
+
+### Mix envs
+
+We recommend that `:my_ship` only supports the `:prod` Mix env. Add the following to
+a `.env` file. Later, we'll use this file to configure application secrets. Don't check
+it in.
+
+```
+# .env
+export MIX_ENV=prod
+```
+
+```
+echo .env >> .gitignore
+```
 
 ### Get your deps
 
 Add kapten and the apps you wish to run to your deps.
 
 ```elixir
-defp kapten_dep(dep \\ []) do
-  env = if Mix.env() == :dev, do: :dev, else: :prod
-
-  [ env: env, only: [:dev, :prod] ]
-  |> Keyword.merge(dep)
-end
-
 def deps do
   [
     {:kapten, "~> 0.1.0"},
-    {:my_app, "~> 0.1.0", kapten_dep()},
-    {:other_app, "~> 0.1.0", kapten_dep()}
+    {:my_app, "~> 0.1.0"},
+    {:other_app, "~> 0.1.0"}
   ]
 end
 ```
@@ -49,19 +71,29 @@ end
 ```elixir
 import Config
 
+# System configuration for the openssl binary path
 config :kapten, Kapten.OpenSSL, openssl: "/usr/bin/openssl"
 
+# System configuration for the certbot binary path, and your email address to register with Let's Encrypt
 config :kapten, Kapten.Certbot,
   certbot: "/opt/homebrew/bin/certbot",
   email: "your-email@example.com"
 
+# System configuration for the nginx binary path
 config :kapten, Kapten.Nginx, nginx: "/opt/homebrew/opt/nginx/bin/nginx"
 
+# Defines the TLS servers for your Ship. `http` will be a reverse proxy, `static` will simply be an
+# nginx `root` directory. You can't mix them.
 if config_env() == :prod do
   config :kapten, Kapten.Nginx,
-    tls_servers: ["myapp.example.com": [http: 4000], "otherapp.example.com": [http: 4001]]
+    tls_servers: [
+      "myapp.example.com": [http: 4000],
+      "otherapp.example.com": [http: 4001],
+      "docs.example.com": [static: "path/to/static/relative/to/my_ship/priv"]
+    ]
 end
 
+# We need to lead the Kapten.Config module from kapten's dep location, and then require it.
 kapten_config =
   Mix.Project.deps_paths()
   |> Map.get(:kapten)
@@ -69,17 +101,22 @@ kapten_config =
 
 if File.exists?(kapten_config) do
   Code.require_file(kapten_config)
-
-  defmodule MyShip.Config do
-    use Kapten.Config,
-      apps: [
-        my_app: [env: [dev: [port: 4000]]],
-        other_app: [env: [dev: [port: 4001]]]
-      ]
-  end
-
-  MyShip.Config.configure_compiletime()
+else
+  raise "kapten config file not found"
 end
+
+# Configure Kapten.Config to be aware of our apps
+defmodule MyShip.Config do
+  use Kapten.Config,
+    otp_app: :my_ship,
+    apps: [
+      my_app: [env: [dev: [port: 4000]]],
+      other_app: [env: [dev: [port: 4001]]]
+    ]
+end
+
+# Now we import each app's config.exs
+MyShip.Config.configure_compiletime()
 
 []
 ```
@@ -88,6 +125,9 @@ end
 
 ```elixir
 import Config
+
+# Each app will have runtime config that expects various env vars. We set those
+# vars and then configure the app's runtime config.
 
 if config_env() == :prod do
   System.put_env("PHX_HOST", "myapp.example.com")
@@ -112,8 +152,8 @@ In your Mix Project's deps, add a `:"kapten.deploy"` key that specifies any mix 
   defp deps do
     [
       {:kapten, github: "jessestimpson/kapten"},
-      {:my_app, kapten_dep(github: "jessestimpson/my_app", "kapten.deploy": ["phx.digest --no-compile"])},
-      {:other_app, kapten_dep(github: "jessestimpson/other_app", "kapten.deploy": ["phx.digest --no-compile"])}
+      {:my_app, github: "jessestimpson/my_app", "kapten.deploy": ["phx.digest --no-compile"]},
+      {:other_app, github: "jessestimpson/other_app", "kapten.deploy": ["phx.digest --no-compile"]}
     ]
   end
 # ...
@@ -182,7 +222,7 @@ export MYAPP_SECRET_KEY_BASE="foobar"
 export OTHERAPP_SECRET_KEY_BASE="bazbuz"
 ```
 
-The `start.sh` script starts the app. It's helpful if you're using asdf.
+The `start.sh` script starts the app. It can be a helpful thing to add if you're using asdf.
 
 ```
 # start.sh
@@ -215,7 +255,7 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 WantedBy=multi-user.target
 ```
 
-Disable services from the dependencies shown above and any other services that you may have under kapten's management:
+Disable all services that Kapten and MyShip manage:
 
 ```
 # Required
@@ -229,7 +269,8 @@ systemctl stop foundationdb && systemctl mask foundationdb
 
 ### apt unattended-upgrades
 
-If you're using unattended-upgrades, you may want to add your service to the Blacklist. Here's how to do it:
+If you're using unattended-upgrades, you may want to add your service to the Blacklist. Doing so will
+prevent it from being restarted by the system. Here's how to do it:
 
 ```
 vim /etc/apt/apt.conf.d/50unattended-upgrades

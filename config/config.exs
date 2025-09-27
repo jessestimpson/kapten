@@ -6,13 +6,14 @@ defmodule Kapten.Config do
 
   defmacro __using__(opts) do
     quote do
-      @apps unquote(opts[:apps])
+      @otp_app unquote(opts[:otp_app] || raise("You must define :otp_app"))
+      @apps unquote(opts[:apps] || raise("You must define :apps"))
       @runtime_configs Kapten.Config.__build_runtime_configs__(unquote(Keyword.keys(opts[:apps])))
       @runtime_config_process_key :kapten_runtime_config
 
       def configure_compiletime(app_names \\ unquote(opts[:apps] |> Keyword.keys())) do
         apps = Keyword.take(@apps, app_names)
-        Kapten.Config.__configure_compiletime__(apps)
+        Kapten.Config.__configure_compiletime__(@otp_app, apps)
       end
 
       def configure_runtime(app_names \\ unquote(opts[:apps] |> Keyword.keys())) do
@@ -36,7 +37,9 @@ defmodule Kapten.Config do
     end
   end
 
-  def __configure_compiletime__(post_configs) do
+  def __configure_compiletime__(otp_app, post_configs) do
+    Config.config(:kapten, otp_app: otp_app)
+
     deps_paths = Mix.Project.deps_paths()
 
     top_level_deps_path = Mix.Project.deps_path()
