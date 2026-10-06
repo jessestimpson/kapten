@@ -115,6 +115,14 @@ if config_env() == :prod do
     ]
 end
 
+# Optionally, limit how often one client address may request a path. Requests over the limit
+# get 429. See Kapten.Nginx.Limits.
+#
+#   "myapp.example.com": [
+#     http: myapp_http_port,
+#     limits: [[path: "/signup", methods: ["POST"], rate: "10r/m", burst: 5]]
+#   ]
+
 # We need to lead the Kapten.Config module from kapten's dep location, and then require it.
 kapten_config =
   Mix.Project.deps_paths()

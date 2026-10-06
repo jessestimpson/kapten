@@ -39,6 +39,7 @@ defmodule Kapten.Nginx do
     tls_servers = tls_servers()
 
     prepare_tls_servers!(tls_servers)
+    write_limits!(tls_servers)
 
     config_file = Path.join([root(), "nginx.conf"])
     cmd = [nginx(), "-g", "daemon off;", "-c", config_file]
@@ -83,6 +84,16 @@ defmodule Kapten.Nginx do
     end
 
     prepare_tls_servers!(tls_servers)
+  end
+
+  # Unlike the server files, rewritten on every start, so that changes to
+  # :limits apply. Its name cannot be a server's: none starts with "_". It
+  # is included at the http level by nginx.conf's `include servers/*`.
+  defp write_limits!(tls_servers) do
+    servers_path = Path.join([root(), "servers"])
+    File.mkdir_p!(servers_path)
+    limits_file = Path.join([servers_path, "_kapten_limits.conf"])
+    File.write!(limits_file, Kapten.Nginx.Limits.conf(tls_servers))
   end
 
   defp create_nginx_conf(server_config, assigns) do
